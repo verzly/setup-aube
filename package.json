@@ -5,7 +5,7 @@
   "description": "GitHub Action to install aube from official release binaries",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "bundle": "ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "bundle": "ncc build src/index.ts -o dist",
     "package": "npm run typecheck && npm run bundle",
     "check-dist": "git diff --exit-code -- dist"
   },
