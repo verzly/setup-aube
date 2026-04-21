@@ -9,7 +9,6 @@ import yaml from 'js-yaml'
 const execFileAsync = promisify(execFile)
 
 type DistTags = Record<string, string | undefined>
-
 type InstallCommand = 'install' | 'ci'
 
 type SingleRunInstallConfig = {
@@ -19,7 +18,11 @@ type SingleRunInstallConfig = {
   args?: string[]
 }
 
-type RunInstallValue = boolean | null | SingleRunInstallConfig | SingleRunInstallConfig[]
+type RunInstallValue =
+  | boolean
+  | null
+  | SingleRunInstallConfig
+  | SingleRunInstallConfig[]
 
 function npmCommand(): string {
   return process.platform === 'win32' ? 'npm.cmd' : 'npm'
@@ -29,13 +32,17 @@ function aubeCommand(): string {
   return process.platform === 'win32' ? 'aube.exe' : 'aube'
 }
 
-function normalizeVersionInput(input: string): string {
-  const value = input.trim()
-  return value === '' ? 'latest' : value
+function workspaceRoot(): string {
+  return process.env.GITHUB_WORKSPACE || process.cwd()
 }
 
 function stripLeadingV(version: string): string {
   return version.startsWith('v') ? version.slice(1) : version
+}
+
+function normalizeVersionInput(input: string): string {
+  const value = input.trim()
+  return value === '' ? 'latest' : value
 }
 
 async function resolveVersion(input: string): Promise<string> {
@@ -146,7 +153,7 @@ async function downloadAndExtract(
 
   const downloadedPath = await tc.downloadTool(assetUrl)
   const extractRoot = path.join(
-    process.env['RUNNER_TEMP'] || process.cwd(),
+    process.env.RUNNER_TEMP || process.cwd(),
     'setup-aube',
     releaseTag
   )
@@ -203,7 +210,7 @@ function normalizeSingleRunInstallConfig(value: unknown): SingleRunInstallConfig
   return {
     command,
     recursive: recursiveValue ?? false,
-    cwd: cwdValue ?? process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+    cwd: cwdValue ?? workspaceRoot(),
     args: argsValue ?? []
   }
 }
@@ -211,11 +218,7 @@ function normalizeSingleRunInstallConfig(value: unknown): SingleRunInstallConfig
 function parseRunInstall(raw: string): SingleRunInstallConfig[] {
   const trimmed = raw.trim()
 
-  if (trimmed === '' || trimmed === 'null') {
-    return []
-  }
-
-  if (trimmed === 'false') {
+  if (trimmed === '' || trimmed === 'null' || trimmed === 'false') {
     return []
   }
 
@@ -224,7 +227,7 @@ function parseRunInstall(raw: string): SingleRunInstallConfig[] {
       {
         command: 'install',
         recursive: false,
-        cwd: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+        cwd: workspaceRoot(),
         args: []
       }
     ]
@@ -249,7 +252,7 @@ function parseRunInstall(raw: string): SingleRunInstallConfig[] {
       {
         command: 'install',
         recursive: false,
-        cwd: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+        cwd: workspaceRoot(),
         args: []
       }
     ]

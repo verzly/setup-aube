@@ -13,7 +13,7 @@ inputs:
     default: latest
 
   run_install:
-    description: If specified, run aube install
+    description: If specified, run `aube install`
     required: false
     default: 'null'
 
