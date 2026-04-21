@@ -24,17 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bundle action
-        run: npm run package
-
       - name: Run the action
         id: setup
         uses: ./
@@ -71,17 +60,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bundle action
-        run: npm run package
 
       - name: Run the action
         id: setup
@@ -124,17 +102,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bundle action
-        run: npm run package
 
       - name: Run the action
         uses: ./
