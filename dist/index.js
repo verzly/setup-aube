@@ -32366,12 +32366,15 @@ function npmCommand() {
 function aubeCommand() {
     return process.platform === 'win32' ? 'aube.exe' : 'aube';
 }
-function normalizeVersionInput(input) {
-    const value = input.trim();
-    return value === '' ? 'latest' : value;
+function workspaceRoot() {
+    return process.env.GITHUB_WORKSPACE || process.cwd();
 }
 function stripLeadingV(version) {
     return version.startsWith('v') ? version.slice(1) : version;
+}
+function normalizeVersionInput(input) {
+    const value = input.trim();
+    return value === '' ? 'latest' : value;
 }
 async function resolveVersion(input) {
     const normalized = normalizeVersionInput(input);
@@ -32451,7 +32454,7 @@ function findExecutable(root) {
 async function downloadAndExtract(assetUrl, releaseTag, assetName) {
     core.info(`Downloading ${assetUrl}`);
     const downloadedPath = await tc.downloadTool(assetUrl);
-    const extractRoot = path.join(process.env['RUNNER_TEMP'] || process.cwd(), 'setup-aube', releaseTag);
+    const extractRoot = path.join(process.env.RUNNER_TEMP || process.cwd(), 'setup-aube', releaseTag);
     fs.mkdirSync(extractRoot, { recursive: true });
     if (assetName.endsWith('.zip')) {
         return tc.extractZip(downloadedPath, extractRoot);
@@ -32493,16 +32496,13 @@ function normalizeSingleRunInstallConfig(value) {
     return {
         command,
         recursive: recursiveValue ?? false,
-        cwd: cwdValue ?? process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+        cwd: cwdValue ?? workspaceRoot(),
         args: argsValue ?? []
     };
 }
 function parseRunInstall(raw) {
     const trimmed = raw.trim();
-    if (trimmed === '' || trimmed === 'null') {
-        return [];
-    }
-    if (trimmed === 'false') {
+    if (trimmed === '' || trimmed === 'null' || trimmed === 'false') {
         return [];
     }
     if (trimmed === 'true') {
@@ -32510,7 +32510,7 @@ function parseRunInstall(raw) {
             {
                 command: 'install',
                 recursive: false,
-                cwd: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+                cwd: workspaceRoot(),
                 args: []
             }
         ];
@@ -32533,7 +32533,7 @@ function parseRunInstall(raw) {
             {
                 command: 'install',
                 recursive: false,
-                cwd: process.env['GITHUB_WORKSPACE'] ?? process.cwd(),
+                cwd: workspaceRoot(),
                 args: []
             }
         ];
