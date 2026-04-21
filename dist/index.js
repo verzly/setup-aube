@@ -32448,18 +32448,18 @@ function findExecutable(root) {
     }
     throw new Error(`Could not find ${exeName} in extracted archive`);
 }
-async function downloadAndExtract(assetUrl, releaseTag) {
+async function downloadAndExtract(assetUrl, releaseTag, assetName) {
     core.info(`Downloading ${assetUrl}`);
     const downloadedPath = await tc.downloadTool(assetUrl);
     const extractRoot = path.join(process.env['RUNNER_TEMP'] || process.cwd(), 'setup-aube', releaseTag);
     fs.mkdirSync(extractRoot, { recursive: true });
-    if (downloadedPath.endsWith('.zip')) {
+    if (assetName.endsWith('.zip')) {
         return tc.extractZip(downloadedPath, extractRoot);
     }
-    if (downloadedPath.endsWith('.tar.gz')) {
+    if (assetName.endsWith('.tar.gz')) {
         return tc.extractTar(downloadedPath, extractRoot);
     }
-    throw new Error(`Unsupported archive format: ${downloadedPath}`);
+    throw new Error(`Unsupported archive format for asset: ${assetName}`);
 }
 function isPlainObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -32580,7 +32580,7 @@ async function run() {
         const { releaseTag, assetName, assetUrl } = buildAssetInfo(resolvedVersion);
         core.info(`Resolved aube version: ${releaseTag}`);
         core.info(`Selected asset: ${assetName}`);
-        const extractedPath = await downloadAndExtract(assetUrl, releaseTag);
+        const extractedPath = await downloadAndExtract(assetUrl, releaseTag, assetName);
         const executablePath = findExecutable(extractedPath);
         const binDir = path.dirname(executablePath);
         core.addPath(binDir);

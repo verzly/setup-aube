@@ -137,7 +137,11 @@ function findExecutable(root: string): string {
   throw new Error(`Could not find ${exeName} in extracted archive`)
 }
 
-async function downloadAndExtract(assetUrl: string, releaseTag: string): Promise<string> {
+async function downloadAndExtract(
+  assetUrl: string,
+  releaseTag: string,
+  assetName: string
+): Promise<string> {
   core.info(`Downloading ${assetUrl}`)
 
   const downloadedPath = await tc.downloadTool(assetUrl)
@@ -149,15 +153,15 @@ async function downloadAndExtract(assetUrl: string, releaseTag: string): Promise
 
   fs.mkdirSync(extractRoot, { recursive: true })
 
-  if (downloadedPath.endsWith('.zip')) {
+  if (assetName.endsWith('.zip')) {
     return tc.extractZip(downloadedPath, extractRoot)
   }
 
-  if (downloadedPath.endsWith('.tar.gz')) {
+  if (assetName.endsWith('.tar.gz')) {
     return tc.extractTar(downloadedPath, extractRoot)
   }
 
-  throw new Error(`Unsupported archive format: ${downloadedPath}`)
+  throw new Error(`Unsupported archive format for asset: ${assetName}`)
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -309,7 +313,7 @@ async function run(): Promise<void> {
     core.info(`Resolved aube version: ${releaseTag}`)
     core.info(`Selected asset: ${assetName}`)
 
-    const extractedPath = await downloadAndExtract(assetUrl, releaseTag)
+    const extractedPath = await downloadAndExtract(assetUrl, releaseTag, assetName)
     const executablePath = findExecutable(extractedPath)
     const binDir = path.dirname(executablePath)
 
