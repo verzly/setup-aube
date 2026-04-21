@@ -8,8 +8,8 @@ hooks {
 
         steps {
             ["build-action"] {
-                check = "npm run package"
-                fix = "npm run package"
+                check = "aube package"
+                fix = "aube package"
                 exclusive = true
             }
 
