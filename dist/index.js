@@ -32376,10 +32376,22 @@ function normalizeVersionInput(input) {
     const value = input.trim();
     return value === '' ? 'latest' : value;
 }
+async function execCommand(command, args, cwd) {
+    if (process.platform === 'win32') {
+        return execFileAsync('cmd.exe', ['/d', '/s', '/c', command, ...args], {
+            encoding: 'utf8',
+            cwd
+        });
+    }
+    return execFileAsync(command, args, {
+        encoding: 'utf8',
+        cwd
+    });
+}
 async function resolveVersion(input) {
     const normalized = normalizeVersionInput(input);
     if (normalized === 'latest' || normalized === 'next') {
-        const { stdout } = await execFileAsync(npmCommand(), ['view', '@endevco/aube', 'dist-tags', '--json'], { encoding: 'utf8' });
+        const { stdout } = await execCommand(npmCommand(), ['view', '@endevco/aube', 'dist-tags', '--json']);
         const tags = JSON.parse(stdout);
         const resolved = tags[normalized];
         if (!resolved) {
@@ -32544,10 +32556,7 @@ function parseRunInstall(raw) {
     return [normalizeSingleRunInstallConfig(parsed)];
 }
 async function execFileLogged(command, args, cwd) {
-    const { stdout, stderr } = await execFileAsync(command, args, {
-        encoding: 'utf8',
-        cwd
-    });
+    const { stdout, stderr } = await execCommand(command, args, cwd);
     if (stdout.trim() !== '') {
         core.info(stdout.trim());
     }

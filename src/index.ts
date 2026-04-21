@@ -45,14 +45,31 @@ function normalizeVersionInput(input: string): string {
   return value === '' ? 'latest' : value
 }
 
+async function execCommand(
+  command: string,
+  args: string[],
+  cwd?: string
+): Promise<{ stdout: string; stderr: string }> {
+  if (process.platform === 'win32') {
+    return execFileAsync('cmd.exe', ['/d', '/s', '/c', command, ...args], {
+      encoding: 'utf8',
+      cwd
+    })
+  }
+
+  return execFileAsync(command, args, {
+    encoding: 'utf8',
+    cwd
+  })
+}
+
 async function resolveVersion(input: string): Promise<string> {
   const normalized = normalizeVersionInput(input)
 
   if (normalized === 'latest' || normalized === 'next') {
-    const { stdout } = await execFileAsync(
+    const { stdout } = await execCommand(
       npmCommand(),
-      ['view', '@endevco/aube', 'dist-tags', '--json'],
-      { encoding: 'utf8' }
+      ['view', '@endevco/aube', 'dist-tags', '--json']
     )
 
     const tags = JSON.parse(stdout) as DistTags
@@ -266,10 +283,7 @@ function parseRunInstall(raw: string): SingleRunInstallConfig[] {
 }
 
 async function execFileLogged(command: string, args: string[], cwd?: string): Promise<void> {
-  const { stdout, stderr } = await execFileAsync(command, args, {
-    encoding: 'utf8',
-    cwd
-  })
+  const { stdout, stderr } = await execCommand(command, args, cwd)
 
   if (stdout.trim() !== '') {
     core.info(stdout.trim())
