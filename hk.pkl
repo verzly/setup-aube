@@ -1,0 +1,23 @@
+amends "package://github.com/jdx/hk/releases/download/v1.43.0/hk@1.43.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.43.0/hk@1.43.0#/Builtins.pkl"
+
+hooks {
+    ["pre-commit"] {
+        fix = true
+        stash = "git"
+
+        steps {
+            ["build-action"] {
+                check = "npm run package"
+                fix = "npm run package"
+                exclusive = true
+            }
+
+            ["add-dist"] {
+                check = "git add dist"
+                fix = "git add dist"
+                exclusive = true
+            }
+        }
+    }
+}

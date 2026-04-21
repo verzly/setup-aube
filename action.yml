@@ -1,0 +1,29 @@
+name: Setup aube
+description: Install aube package manager
+author: verzly
+
+branding:
+  icon: package
+  color: orange
+
+inputs:
+  version:
+    description: Version of aube to install
+    required: false
+    default: latest
+
+  run_install:
+    description: If specified, run aube install
+    required: false
+    default: 'null'
+
+outputs:
+  version:
+    description: Resolved aube version
+
+  bin-dir:
+    description: Directory added to PATH
+
+runs:
+  using: node24
+  main: dist/index.js

@@ -1,0 +1,28 @@
+name: pr-check
+
+on: [ pull_request ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  check-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@6
+
+      - name: Setup aube
+        uses: verzly/setup-aube@1
+        with:
+          run_install: true
+          version: 1
+
+      - name: Update dist/index.js
+        run: aube run build
+
+      - name: Check for uncommitted changes in dist
+        run: git diff --exit-code dist/index.js
