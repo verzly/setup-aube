@@ -71,8 +71,10 @@ jobs:
         shell: bash
         run: |
           required='v1.0.0-beta.10'
-          actual="$(aube --version)"
+          actual="$(aube --version | sed -E 's/^aube[[:space:]]+//')"
+          actual="v${actual#v}"
           echo "aube version: ${actual}"
+
           if [ "${actual}" != "${required}" ]; then
             echo "Expected ${required}, got ${actual}"
             exit 1
