@@ -1,3 +1,4 @@
+//
 import * as core from '@actions/core'
 import * as tc from '@actions/tool-cache'
 import * as fs from 'node:fs'
