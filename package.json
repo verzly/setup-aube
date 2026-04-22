@@ -1,0 +1,24 @@
+{
+  "name": "setup-aube",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action to install aube from official release binaries",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "package": "rimraf dist && ncc build src/index.ts -o dist",
+    "check-dist": "git diff --exit-code -- dist"
+  },
+  "devDependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/tool-cache": "^2.0.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.0.0",
+    "@vercel/ncc": "^0.38.3",
+    "js-yaml": "^4.1.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
