@@ -7,10 +7,95 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
+  changes:
+    name: Check whether dist changed
+    runs-on: ubuntu-latest
+    outputs:
+      dist_changed: ${{ steps.filter.outputs.dist_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect dist changes
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          else
+            # workflow_dispatch: run tests by default
+            echo "dist_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Comparing $BASE_SHA...$HEAD_SHA"
+
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -qE '^dist/'; then
+            echo "dist_changed=true" >> "$GITHUB_OUTPUT"
+            echo "dist/ changed"
+          else
+            echo "dist_changed=false" >> "$GITHUB_OUTPUT"
+            echo "dist/ did not change"
+          fi
+
+  comment_skip:
+    name: Comment on skipped tests
+    if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.dist_changed != 'true' }}
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add or update PR comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- setup-aube-dist-skip -->'
+            const body = `${marker}
+            CI tests were not started because the \`dist/\` directory was not modified in this pull request.
+
+            If this was intentional (for example, docs-only or source-only changes), no action is needed.`;
+
+            const issue_number = context.issue.number;
+            const { owner, repo } = context.repo;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 }
+            );
+
+            const existing = comments.find(c =>
+              c.user?.type === 'Bot' && c.body?.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+            }
+
   test_default:
     name: Test default install (${{ matrix.os }})
+    if: ${{ needs.changes.outputs.dist_changed == 'true' }}
+    needs: changes
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -22,7 +107,7 @@ jobs:
           - windows-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Run the action
         id: setup
@@ -48,6 +133,8 @@ jobs:
 
   test_explicit_version:
     name: Test explicit version (${{ matrix.os }})
+    if: ${{ needs.changes.outputs.dist_changed == 'true' }}
+    needs: changes
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -92,6 +179,8 @@ jobs:
 
   test_smoke_project:
     name: Test fresh project commands (${{ matrix.os }})
+    if: ${{ needs.changes.outputs.dist_changed == 'true' }}
+    needs: changes
     runs-on: ${{ matrix.os }}
 
     strategy:
