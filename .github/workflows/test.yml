@@ -16,7 +16,7 @@ jobs:
     outputs:
       dist_changed: ${{ steps.filter.outputs.dist_changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -107,7 +107,7 @@ jobs:
           - windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run the action
         id: setup
