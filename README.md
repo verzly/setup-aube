@@ -19,7 +19,6 @@ It resolves versions from npm dist-tags, downloads the matching upstream binary 
 * [Version resolution](#version-resolution)
 * [Example workflow](#example-workflow)
 * [Contributing](#contributing)
-* [License & Acknowledgments](#license--acknowledgments)
 
 ## Usage
 
