@@ -158,7 +158,7 @@ which generates the compiled output in:
 dist/index.js
 ```
 
-However, you usually don’t need to run this manually. The repository is configured with `hk` pre-commit hooks. After installing them with:
+However, you usually don't need to run this manually. The repository is configured with `hk` pre-commit hooks. After installing them with:
 
 ```sh
 hk install
