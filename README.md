@@ -26,27 +26,40 @@ Use this action to install `aube` in your workflow and make it available on the 
 
 It works on `x64` and `arm64` runners across Linux, macOS, and Windows, and requires no additional setup.
 
+> [!NOTE]
+> Node.js is not required to use aube itself. However, since aube manages JavaScript packages, installing Node.js is recommended if you plan to run those packages.
+
 ### Basic
 
 This installs the latest version of `aube` and lets you run commands directly:
 
 ```yaml
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v6
 
+  # Install the latest aube release
   - uses: verzly/setup-aube@v1
 
   - run: aube install
 ```
+
+> [!NOTE]
+> This action supports moving tags such as `@latest`, `@v1`, and `@v1.2`, as well as exact versions like `@v1.2.3`.
+> In general, `@v1` is recommended for most workflows, while `@v1.2.3` is best for strict reproducibility.
 
 ### With explicit version
 
 If you need a specific version (for reproducibility or debugging), you can pin it:
 
 ```yaml
-- uses: verzly/setup-aube@v1
-  with:
-    version: v1.0.0-beta.10
+steps:
+  - uses: actions/checkout@v6
+
+  - uses: verzly/setup-aube@v1
+    with:
+      version: v1.0.0-beta.10
+
+  - run: aube install
 ```
 
 ### With automatic install
@@ -54,9 +67,12 @@ If you need a specific version (for reproducibility or debugging), you can pin i
 To automatically install dependencies as part of setup:
 
 ```yaml
-- uses: verzly/setup-aube@v1
-  with:
-    run_install: true
+steps:
+  - uses: actions/checkout@v6
+
+  - uses: verzly/setup-aube@v1
+    with:
+      run_install: true
 ```
 
 This is equivalent to running `aube install` right after setup.
@@ -120,16 +136,32 @@ This allows us to determine the current release version without relying on the G
 ```yaml
 name: CI
 
-on: push
+on:
+  push:
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      # Optional but recommended if running JS packages
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
       - uses: verzly/setup-aube@v1
+
+      # Optional: cache dependencies
+      - name: Cache aube store
+        uses: actions/cache@v6
+        with:
+          path: ~/.aube
+          key: ${{ runner.os }}-aube-${{ hashFiles('**/aube.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-aube-
 
       - run: aube install
       - run: aube test
