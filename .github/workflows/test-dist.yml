@@ -1,0 +1,110 @@
+name: Test Dist
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test_default:
+    name: Test default install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run the action
+        id: setup
+        uses: ./
+
+      - name: Test aube is on PATH
+        shell: bash
+        run: command -v aube
+
+      - name: Test version output
+        shell: bash
+        run: |
+          actual="$(aube --version)"
+          echo "aube version: ${actual}"
+          test -n "${actual}"
+
+      - name: Test resolved output version
+        shell: bash
+        run: |
+          resolved='${{ steps.setup.outputs.version }}'
+          echo "resolved version: ${resolved}"
+          test -n "${resolved}"
+
+  test_explicit_version:
+    name: Test explicit version (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run the action
+        id: setup
+        uses: ./
+        with:
+          version: v1.0.0-beta.10
+
+      - name: Test exact version installed
+        shell: bash
+        run: |
+          required='v1.0.0-beta.10'
+          actual="$(aube --version | sed -E 's/^aube[[:space:]]+//')"
+          actual="v${actual#v}"
+          echo "aube version: ${actual}"
+
+          if [ "${actual}" != "${required}" ]; then
+            echo "Expected ${required}, got ${actual}"
+            exit 1
+          fi
+
+      - name: Test action output version
+        shell: bash
+        run: |
+          resolved='${{ steps.setup.outputs.version }}'
+          expected='v1.0.0-beta.10'
+          if [ "${resolved}" != "${expected}" ]; then
+            echo "Expected output version ${expected}, got ${resolved}"
+            exit 1
+          fi
+
+  test_smoke_project:
+    name: Test fresh project commands (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run the action
+        uses: ./
+
+      - name: Create fresh project and run aube commands
+        shell: bash
+        run: |
+          mkdir test-project
+          cd test-project
+          aube init --bare
+          aube add is-odd
+
+      - name: Check project files
+        shell: bash
+        run: |
+          test -f test-project/package.json
+          test -d test-project/node_modules
+          grep '"is-odd"' test-project/package.json

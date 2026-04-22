@@ -14,14 +14,14 @@ jobs:
     name: Check whether dist changed
     runs-on: ubuntu-latest
     outputs:
-      dist_changed: ${{ steps.filter.outputs.dist_changed }}
+      dist_changed: ${{ steps.diff.outputs.dist_changed }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Detect dist changes
-        id: filter
+        id: diff
         shell: bash
         run: |
           set -euo pipefail
@@ -32,15 +32,21 @@ jobs:
           elif [ "${{ github.event_name }}" = "push" ]; then
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
+
+            if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+              echo "Initial push detected, running tests."
+              echo "dist_changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           else
-            # workflow_dispatch: run tests by default
+            echo "workflow_dispatch detected, running tests."
             echo "dist_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Comparing $BASE_SHA...$HEAD_SHA"
+          echo "Comparing ${BASE_SHA}...${HEAD_SHA}"
 
-          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -qE '^dist/'; then
+          if git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -qE '^dist/'; then
             echo "dist_changed=true" >> "$GITHUB_OUTPUT"
             echo "dist/ changed"
           else
@@ -48,166 +54,68 @@ jobs:
             echo "dist/ did not change"
           fi
 
-  comment_skip:
-    name: Comment on skipped tests
-    if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.dist_changed != 'true' }}
+  pr_comment:
+    name: Sync PR comment
     needs: changes
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Add or update PR comment
+      - name: Create, update, or delete skip comment
         uses: actions/github-script@v8
+        env:
+          DIST_CHANGED: ${{ needs.changes.outputs.dist_changed }}
         with:
           script: |
-            const marker = '<!-- setup-aube-dist-skip -->'
+            const marker = '<!-- dist-tests-skipped -->'
             const body = `${marker}
-            CI tests were not started because the \`dist/\` directory was not modified in this pull request.
+            Tests were not started because the \`dist/\` directory was not modified in this pull request.`
 
-            If this was intentional (for example, docs-only or source-only changes), no action is needed.`;
-
-            const issue_number = context.issue.number;
-            const { owner, repo } = context.repo;
+            const { owner, repo } = context.repo
+            const issue_number = context.issue.number
+            const distChanged = process.env.DIST_CHANGED === 'true'
 
             const comments = await github.paginate(
               github.rest.issues.listComments,
               { owner, repo, issue_number, per_page: 100 }
-            );
+            )
 
             const existing = comments.find(c =>
               c.user?.type === 'Bot' && c.body?.includes(marker)
-            );
+            )
 
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body
-              });
+            if (!distChanged) {
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body
+                })
+                core.info('Updated existing skip comment.')
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body
+                })
+                core.info('Created new skip comment.')
+              }
             } else {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body
-              });
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id
+                })
+                core.info('Deleted stale skip comment.')
+              } else {
+                core.info('No skip comment found.')
+              }
             }
 
-  test_default:
-    name: Test default install (${{ matrix.os }})
-    if: ${{ needs.changes.outputs.dist_changed == 'true' }}
+  run_tests:
+    name: Run dist tests
     needs: changes
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run the action
-        id: setup
-        uses: ./
-
-      - name: Test aube is on PATH
-        shell: bash
-        run: command -v aube
-
-      - name: Test version output
-        shell: bash
-        run: |
-          actual="$(aube --version)"
-          echo "aube version: ${actual}"
-          test -n "${actual}"
-
-      - name: Test resolved output version
-        shell: bash
-        run: |
-          resolved='${{ steps.setup.outputs.version }}'
-          echo "resolved version: ${resolved}"
-          test -n "${resolved}"
-
-  test_explicit_version:
-    name: Test explicit version (${{ matrix.os }})
     if: ${{ needs.changes.outputs.dist_changed == 'true' }}
-    needs: changes
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run the action
-        id: setup
-        uses: ./
-        with:
-          version: v1.0.0-beta.10
-
-      - name: Test exact version installed
-        shell: bash
-        run: |
-          required='v1.0.0-beta.10'
-          actual="$(aube --version | sed -E 's/^aube[[:space:]]+//')"
-          actual="v${actual#v}"
-          echo "aube version: ${actual}"
-
-          if [ "${actual}" != "${required}" ]; then
-            echo "Expected ${required}, got ${actual}"
-            exit 1
-          fi
-
-      - name: Test action output version
-        shell: bash
-        run: |
-          resolved='${{ steps.setup.outputs.version }}'
-          expected='v1.0.0-beta.10'
-          if [ "${resolved}" != "${expected}" ]; then
-            echo "Expected output version ${expected}, got ${resolved}"
-            exit 1
-          fi
-
-  test_smoke_project:
-    name: Test fresh project commands (${{ matrix.os }})
-    if: ${{ needs.changes.outputs.dist_changed == 'true' }}
-    needs: changes
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run the action
-        uses: ./
-
-      - name: Create fresh project and run aube commands
-        shell: bash
-        run: |
-          mkdir test-project
-          cd test-project
-          aube init --bare
-          aube add is-odd
-
-      - name: Check project files
-        shell: bash
-        run: |
-          test -f test-project/package.json
-          test -d test-project/node_modules
-          grep '"is-odd"' test-project/package.json
+    uses: ./.github/workflows/test-dist.yml
